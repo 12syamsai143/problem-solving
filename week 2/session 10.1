@@ -1,0 +1,49 @@
+import java.util.ArrayDeque;
+import java.util.Deque;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Scanner;
+
+public class Solution {
+    public static void main(String[] args) {
+        Scanner in = new Scanner(System.in);
+        
+        if (!in.hasNextInt()) return;
+        int n = in.nextInt();
+        int m = in.nextInt();
+
+        Deque<Integer> deque = new ArrayDeque<>();
+        Map<Integer, Integer> map = new HashMap<>();
+        int maxUnique = 0;
+
+        for (int i = 0; i < n; i++) {
+            int num = in.nextInt();
+
+            // Add element to the deque and track frequency in map
+            deque.addLast(num);
+            map.put(num, map.getOrDefault(num, 0) + 1);
+
+            // When the sliding window reaches size m
+            if (deque.size() == m) {
+                maxUnique = Math.max(maxUnique, map.size());
+
+                // Early exit optimization: maximum possible unique elements in window of size m is m
+                if (maxUnique == m) {
+                    break;
+                }
+
+                // Slide the window by removing the front element
+                int removed = deque.removeFirst();
+                int count = map.get(removed);
+                if (count == 1) {
+                    map.remove(removed);
+                } else {
+                    map.put(removed, count - 1);
+                }
+            }
+        }
+
+        System.out.println(maxUnique);
+        in.close();
+    }
+}
