@@ -1,0 +1,128 @@
+import java.util.ArrayList;
+import java.util.List;
+
+// 1. Domain Primitive: Ensures 'Amount' is strictly non-negative and valid
+final class Amount {
+    private final double value;
+
+    public Amount(double value) {
+        if (value <= 0) {
+            throw new IllegalArgumentException("Constraint Violation: Amount must be strictly greater than zero.");
+        }
+        this.value = value;
+    }
+
+    public double getValue() { return value; }
+}
+
+// 2. Business Constraint Specification
+interface AccountConstraint {
+    void validate(BankAccount account, Amount amount);
+}
+
+class MinimumBalanceConstraint implements AccountConstraint {
+    private final double minBalance;
+
+    public MinimumBalanceConstraint(double minBalance) {
+        this.minBalance = minBalance;
+    }
+
+    @Override
+    public void validate(BankAccount account, Amount amount) {
+        if (account.getBalance() - amount.getValue() < minBalance) {
+            throw new IllegalStateException(
+                String.format("Constraint Violation: Withdrawal of $%.2f exceeds minimum required balance of $%.2f.", 
+                amount.getValue(), minBalance)
+            );
+        }
+    }
+}
+
+class DailyWithdrawalLimitConstraint implements AccountConstraint {
+    private final double dailyLimit;
+
+    public DailyWithdrawalLimitConstraint(double dailyLimit) {
+        this.dailyLimit = dailyLimit;
+    }
+
+    @Override
+    public void validate(BankAccount account, Amount amount) {
+        if (account.getDailyWithdrawnTotal() + amount.getValue() > dailyLimit) {
+            throw new IllegalStateException(
+                String.format("Constraint Violation: Operation exceeds maximum daily limit of $%.2f.", dailyLimit)
+            );
+        }
+    }
+}
+
+// 3. Domain Model enforcing runtime state and invariant constraints
+class BankAccount {
+    private final String accountId;
+    private double balance;
+    private double dailyWithdrawnTotal;
+    private final List<AccountConstraint> withdrawalConstraints = new ArrayList<>();
+
+    public BankAccount(String accountId, double initialBalance) {
+        this.accountId = accountId;
+        this.balance = initialBalance;
+        this.dailyWithdrawnTotal = 0;
+    }
+
+    public void addWithdrawalConstraint(AccountConstraint constraint) {
+        this.withdrawalConstraints.add(constraint);
+    }
+
+    public synchronized void withdraw(Amount amount) {
+        // Enforce all registered constraints prior to state mutation
+        for (AccountConstraint constraint : withdrawalConstraints) {
+            constraint.validate(this, amount);
+        }
+
+        // State update only occurs if all constraints pass
+        this.balance -= amount.getValue();
+        this.dailyWithdrawnTotal += amount.getValue();
+        System.out.printf("Successfully withdrew $%.2f. New Balance: $%.2f%n", amount.getValue(), this.balance);
+    }
+
+    public double getBalance() { return balance; }
+    public double getDailyWithdrawnTotal() { return dailyWithdrawnTotal; }
+    public String getAccountId() { return accountId; }
+}
+
+// 4. Execution demonstrating constraint enforcement
+public class Main {
+    public static void main(String[] args) {
+        BankAccount account = new BankAccount("ACC-9901", 1000.00);
+
+        // Register rules / constraints dynamically
+        account.addWithdrawalConstraint(new MinimumBalanceConstraint(100.00));
+        account.addWithdrawalConstraint(new DailyWithdrawalLimitConstraint(500.00));
+
+        // Valid Transaction
+        try {
+            account.withdraw(new Amount(300.00));
+        } catch (Exception e) {
+            System.err.println(e.getMessage());
+        }
+
+        // Fails Daily Limit Constraint ($300 + $300 > $500 limit)
+        try {
+            account.withdraw(new Amount(300.00));
+        } catch (Exception e) {
+            System.out.println(e.getMessage());
+        }
+
+        // Fails Domain Primitive Constraint (Negative/Zero Amount)
+        try {
+            account.withdraw(new Amount(-50.00));
+        } catch (Exception e) {
+            System.out.println(e.getMessage());
+        }
+    }
+
+    Successfully withdrew $300.00. New Balance: $700.00
+Constraint Violation: Operation exceeds maximum daily limit of $500.00.
+Constraint Violation: Amount must be strictly greater than zero.
+
+=== Code Execution Successful ===
+}
