@@ -1,0 +1,122 @@
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.List;
+
+// Represents individual transactions
+class Transaction {
+    private final String type;
+    private final double amount;
+    private final Date timestamp;
+
+    public Transaction(String type, double amount) {
+        this.type = type;
+        this.amount = amount;
+        this.timestamp = new Date();
+    }
+
+    @Override
+    public String toString() {
+        return String.format("[%s] %s: $%.2f", timestamp, type, amount);
+    }
+}
+
+// Represents a bank account with deposit, withdraw, and transfer logic
+class BankAccount {
+    private final String accountNumber;
+    private final String accountHolder;
+    private double balance;
+    private final List<Transaction> transactionHistory;
+
+    public BankAccount(String accountNumber, String accountHolder, double initialDeposit) {
+        this.accountNumber = accountNumber;
+        this.accountHolder = accountHolder;
+        this.balance = initialDeposit;
+        this.transactionHistory = new ArrayList<>();
+        
+        if (initialDeposit > 0) {
+            transactionHistory.add(new Transaction("INITIAL DEPOSIT", initialDeposit));
+        }
+    }
+
+    public synchronized void deposit(double amount) {
+        if (amount <= 0) {
+            System.out.println("Deposit amount must be positive.");
+            return;
+        }
+        balance += amount;
+        transactionHistory.add(new Transaction("DEPOSIT", amount));
+        System.out.printf("Successfully deposited $%.2f. New Balance: $%.2f%n", amount, balance);
+    }
+
+    public synchronized boolean withdraw(double amount) {
+        if (amount <= 0) {
+            System.out.println("Withdrawal amount must be positive.");
+            return false;
+        }
+        if (amount > balance) {
+            System.out.println("Insufficient funds.");
+            return false;
+        }
+        balance -= amount;
+        transactionHistory.add(new Transaction("WITHDRAWAL", amount));
+        System.out.printf("Successfully withdrew $%.2f. New Balance: $%.2f%n", amount, balance);
+        return true;
+    }
+
+    public synchronized void transfer(BankAccount targetAccount, double amount) {
+        if (this.withdraw(amount)) {
+            targetAccount.deposit(amount);
+            System.out.printf("Transferred $%.2f to %s%n", amount, targetAccount.getAccountHolder());
+        } else {
+            System.out.println("Transfer failed.");
+        }
+    }
+
+    public void printStatement() {
+        System.out.println("\n--- Account Statement for " + accountHolder + " (" + accountNumber + ") ---");
+        for (Transaction t : transactionHistory) {
+            System.out.println(t);
+        }
+        System.out.printf("Current Balance: $%.2f%n", balance);
+        System.out.println("----------------------------------------");
+    }
+
+    public double getBalance() { return balance; }
+    public String getAccountHolder() { return accountHolder; }
+}
+
+// Main class executing sample banking operations
+public class Main {
+    public static void main(String[] args) {
+        BankAccount acc1 = new BankAccount("ACC1001", "Alice", 500.00);
+        BankAccount acc2 = new BankAccount("ACC1002", "Bob", 200.00);
+
+        acc1.deposit(150.00);
+        acc1.withdraw(50.00);
+        acc1.transfer(acc2, 200.00);
+
+        acc1.printStatement();
+        acc2.printStatement();
+    }
+} 
+Successfully deposited $150.00. New Balance: $650.00
+Successfully withdrew $50.00. New Balance: $600.00
+Successfully withdrew $200.00. New Balance: $400.00
+Successfully deposited $200.00. New Balance: $400.00
+Transferred $200.00 to Bob
+
+--- Account Statement for Alice (ACC1001) ---
+[Fri Aug 21 03:41:52 GMT 2026] INITIAL DEPOSIT: $500.00
+[Fri Aug 21 03:41:52 GMT 2026] DEPOSIT: $150.00
+[Fri Aug 21 03:41:52 GMT 2026] WITHDRAWAL: $50.00
+[Fri Aug 21 03:41:52 GMT 2026] WITHDRAWAL: $200.00
+Current Balance: $400.00
+----------------------------------------
+
+--- Account Statement for Bob (ACC1002) ---
+[Fri Aug 21 03:41:52 GMT 2026] INITIAL DEPOSIT: $200.00
+[Fri Aug 21 03:41:52 GMT 2026] DEPOSIT: $200.00
+Current Balance: $400.00
+----------------------------------------
+
+=== Code Execution Successful ===
